@@ -9,14 +9,14 @@ intervals.
 > matches orders itself.
 
 **Status: one real day measured (Nasdaq 12/30/2019, 268,744,780 messages).**
-All numbers below come from the files in [docs/results/](docs/results/), run on an Apple M5 (macOS, unpinned).
+All numbers below come from the files in [docs/results/](docs/results/), run on an Apple M5 (macOS, unpinned). Benchmark numbers are from the second full run, `docs/results/mac-run2/`; the first run is kept in `mac-run1-loaded/` and explained under "What didn't work".
 
 | Headline | Value |
 |---|---|
 | Day file, message count, symbols | 12302019.NASDAQ_ITCH50, 268,744,780 messages; 8,906 symbols in the stock directory, **8,892 books actually built** (ever non-empty) |
-| Throughput, memory-resident, flat store + sorted-vector levels (95% CI, 30 runs) | 6.46 M msgs/s [6.28, 6.65] |
-| p50 / p99 / p99.9 per-message latency, same design (95% CI) | 125 ns / 441 ns [433, 449] / 1,216 ns [1,197, 1,236] |
-| Baseline (`std::unordered_map` + `std::map`) | 3.74 M msgs/s [3.42, 4.00]; p99 937 ns [915, 966] |
+| Throughput, memory-resident, flat store + sorted-vector levels (95% CI, 30 runs) | 9.90 M msgs/s [9.82, 9.97] |
+| p50 / p99 / p99.9 per-message latency, same design (95% CI) | 125 ns / 445 ns [432, 459] / 1,113 ns [1,089, 1,140] |
+| Baseline (`std::unordered_map` + `std::map`) | 4.06 M msgs/s [3.96, 4.17]; p99 1,004 ns [966, 1,051] |
 | Differential mismatches over the day | 0 (1,340 symbol-checkpoints, all four designs) |
 | Oracle BBO cross-check (`itch-book` 0.2.1) | 0 mismatches, 5 symbols |
 
@@ -93,34 +93,41 @@ scripts/reproduce.sh 12302019                         # everything, from a clean
 ## Results
 
 Environment: Apple M5, 10 cores, 24 GB, macOS (Darwin 25.6.0), Apple clang 21, `-O3`, unpinned
-(full record in [docs/results/env.txt](docs/results/env.txt)). 30 measured runs per design after 3
-warm-ups, latency sampled 1 in 64 messages. Raw rows: [docs/results/runs.csv](docs/results/runs.csv).
+(full record in [docs/results/mac-run2/env.txt](docs/results/mac-run2/env.txt)). 30 measured runs per
+design after 3 warm-ups, latency sampled 1 in 64 messages. Raw rows:
+[docs/results/mac-run2/runs.csv](docs/results/mac-run2/runs.csv). Other applications were running on
+the laptop (load average 4.3 at start), so treat absolute numbers as indicative.
 
 | design (store + levels) | throughput (M msgs/s) | p50 ns | p99 ns | p99.9 ns |
 |---|---|---|---|---|
-| unordered_map + std::map (baseline) | 3.74 [3.42, 4.00] | 174 [168, 179] | 937 [915, 966] | 1,595 [1,534, 1,671] |
-| unordered_map + sorted vector | 4.23 [4.17, 4.29] | 166 [166, 166] | 678 [671, 685] | 1,449 [1,426, 1,473] |
-| flat hash + std::map | 5.36 [5.23, 5.48] | 125 [125, 125] | 643 [632, 654] | 1,197 [1,160, 1,233] |
-| **flat hash + sorted vector** | **6.46 [6.28, 6.65]** | **125 [125, 125]** | **441 [433, 449]** | **1,216 [1,197, 1,236]** |
+| unordered_map + std::map (baseline) | 4.06 [3.96, 4.17] | 175 [170, 181] | 1,004 [966, 1,051] | 1,790 [1,630, 1,982] |
+| unordered_map + sorted vector | 5.77 [5.68, 5.85] | 141 [134, 147] | 668 [656, 681] | 1,292 [1,265, 1,323] |
+| flat hash + std::map | 7.90 [7.80, 7.99] | 125 [125, 125] | 649 [636, 662] | 1,145 [1,128, 1,163] |
+| **flat hash + sorted vector** | **9.90 [9.82, 9.97]** | **125 [125, 125]** | **445 [432, 459]** | **1,113 [1,089, 1,140]** |
 
 Design comparison, flat hash + sorted vector minus baseline (difference, 95% bootstrap CI; an
 improvement only if the CI excludes zero):
 
 | metric | difference | CI | verdict |
 |---|---|---|---|
-| throughput | +2.72 M msgs/s (+72.6%) | [+2.40, +3.09] | improvement |
-| p50 | -48.8 ns (-28.1%) | [-54.3, -43.4] | improvement |
-| p99 | -496.5 ns (-53.0%) | [-527.1, -473.3] | improvement |
-| p99.9 | -378.7 ns (-23.7%) | [-456.8, -314.7] | improvement |
+| throughput | +5.83 M msgs/s (+143.6%) | [+5.70, +5.96] | improvement |
+| p50 | -50.2 ns (-28.7%) | [-57.0, -44.7] | improvement |
+| p99 | -559.2 ns (-55.7%) | [-605.7, -518.1] | improvement |
+| p99.9 | -677.2 ns (-37.8%) | [-872.8, -515.9] | improvement |
 
-Why it plausibly won: the flat open-addressing table keeps entries contiguous (fewer cache lines
-touched per lookup than node-based `unordered_map`), and a sorted vector keeps the few levels
-near the touch contiguous where `std::map` chases pointers. This is an explanation from the data
-structure, not a measured one: `perf stat` counters are not available on macOS (see Limitations).
-The p50 of exactly 125 ns (three ~42 ns timer steps) is a quantised value, so those p50 CIs are
-degenerate and say little beyond "about 125 ns".
+Which change mattered: comparing the means, swapping the order store (baseline to flat hash with
+`std::map`) moved throughput by +3.84 M msgs/s, and swapping the price levels (baseline to sorted
+vector) by +1.71 M msgs/s; the two together gave +5.83 M. The order-store change is the larger one.
+These per-factor differences are read off the table, without their own CIs.
 
-Latency histogram for the winning design: ![latency](docs/results/latency-flat-vec.png)
+Caveats on this comparison: the four designs were run one after another, not interleaved, so slow
+machine drift could contribute to the gaps (the throughput gap is far larger than the run-to-run
+spread, but this is not a controlled A/B). The reason the flat designs win is still the data
+structure argument (contiguous storage, fewer pointer chases), not a measurement: `perf stat`
+counters are unavailable on macOS. The p50 of exactly 125 ns (three ~42 ns timer steps) is quantised,
+so those p50 CIs are degenerate and say little beyond "about 125 ns".
+
+Latency histogram for the winning design: ![latency](docs/results/mac-run2/latency-flat-vec.png)
 
 ## What didn't work
 
@@ -128,9 +135,18 @@ Latency histogram for the winning design: ![latency](docs/results/latency-flat-v
   Linux and this was developed on a Mac.
 * No x86 / pinned run, so tail latency here is quantised and noisy; treat p99.9 in particular as
   unstable (extreme tail percentiles move a lot between runs).
-* The single-run `replay` tool reported about 10.5 M msgs/s (`docs/results/replay-12302019.txt`),
-  higher than the 30-run `e2e_bench` figure for the same design. I have not reconciled the gap, so
-  only the `e2e_bench` numbers are used above.
+* The four designs were not interleaved within one session, so the comparison is not a controlled A/B.
+* **Throughput gap between tools, resolved.** The first full benchmark run reported 6.46 M msgs/s
+  for flat hash + sorted vector, while the single-run `replay` tool reported about 10.5 M for the
+  same design. Both tools call the same `consume_frames` loop on the same file (the differences are
+  a file sink that is off at runtime in `replay`, prefaulting in `e2e_bench`, and timing only the
+  loop). Re-measured on the same day: `replay` gave 10.69 and 9.64 M msgs/s and three
+  `e2e_bench` runs gave 9.52, 10.13 and 9.96 M msgs/s, so the tools agree. A second full 30-run
+  matrix gave 9.90 M [9.82, 9.97]. The first run (`docs/results/mac-run1-loaded/`) was taken over
+  about two hours on a laptop with other processes running (one `std-map` run took about 1,900 s,
+  0.14 M msgs/s, and its throughput drifted from 5.1 to 3.7 M early on). I did not isolate which
+  process or condition slowed it, so "background load and an unpinned laptop" is the best
+  explanation, not a proven one. The first run's headline was dropped; its files are kept.
 * Throughput with I/O included (reading from cold disk or the `.gz` stream) was not measured.
 * The first version of `remove_order` had a use-after-erase bug, caught by ASan.
 
