@@ -22,8 +22,9 @@ for store in std flat; do
     for mode in throughput latency; do
       HDR=(); [[ $first -eq 0 ]] && HDR=(--no-header)
       EXTRA=(); [[ $mode == latency ]] && EXTRA=(--hist-out "$OUT/hist-$store-$levels.csv")
-      "${PIN[@]}" "$BIN" --file "$FILE" --store "$store" --levels "$levels" --mode "$mode" \
-        --reps "$REPS" --warmup 3 --csv "$OUT/runs.csv" "${HDR[@]}" "${EXTRA[@]}"
+      # ${arr[@]+"${arr[@]}"}: empty arrays are an "unbound variable" error under `set -u` on bash 3.2 (macOS)
+      ${PIN[@]+"${PIN[@]}"} "$BIN" --file "$FILE" --store "$store" --levels "$levels" --mode "$mode" \
+        --reps "$REPS" --warmup 3 --csv "$OUT/runs.csv" ${HDR[@]+"${HDR[@]}"} ${EXTRA[@]+"${EXTRA[@]}"}
       first=0
     done
   done
