@@ -22,3 +22,4 @@ if [[ -f build-rel/CMakeCache.txt ]]; then
   echo "flags_release: $(grep CMAKE_CXX_FLAGS_RELEASE: build-rel/CMakeCache.txt | cut -d= -f2)"
 fi
 echo "git: $(git rev-parse --short HEAD 2>/dev/null || echo uncommitted)"
+echo "load_at_start: $(uptime | sed "s/.*load averages*: //")"
