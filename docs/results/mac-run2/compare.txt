@@ -1,0 +1,6 @@
+flat-vec vs std-map (throughput); difference = flat-vec - std-map
+  msgs_per_sec: diff +5834463.17 [+5701850.25, +5959629.25] (+143.6% of std-map) -> IMPROVEMENT (CI excludes 0)
+flat-vec vs std-map (latency); difference = flat-vec - std-map
+  p50_ns: diff -50.23 [-57.03, -44.73] (-28.7% of std-map) -> IMPROVEMENT (CI excludes 0)
+  p99_ns: diff -559.20 [-605.67, -518.13] (-55.7% of std-map) -> IMPROVEMENT (CI excludes 0)
+  p999_ns: diff -677.20 [-872.81, -515.86] (-37.8% of std-map) -> IMPROVEMENT (CI excludes 0)
