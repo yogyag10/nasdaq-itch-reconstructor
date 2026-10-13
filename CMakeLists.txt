@@ -32,6 +32,9 @@ find_package(ZLIB REQUIRED)
 add_executable(replay src/replay.cpp)
 target_link_libraries(replay PRIVATE itch ZLIB::ZLIB)
 
+add_executable(book_stats tools/book_stats.cpp)
+target_link_libraries(book_stats PRIVATE itch ZLIB::ZLIB)
+
 add_executable(synth_gen tests/synth_gen.cpp)
 target_link_libraries(synth_gen PRIVATE itch)
 
