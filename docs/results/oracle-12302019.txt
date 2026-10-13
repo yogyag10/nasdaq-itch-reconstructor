@@ -1,0 +1,5 @@
+AAPL: ours=424660 oracle=424660 mismatches=0
+MSFT: ours=600038 oracle=600038 mismatches=0
+BSJR: ours=4195 oracle=4195 mismatches=0
+AHT-F: ours=34 oracle=34 mismatches=0
+ISCF: ours=3368 oracle=3368 mismatches=0
