@@ -91,6 +91,40 @@ README reports the observed count instead of hiding it.
 * Real-data quirks absent from the synthetic generator. The synthetic day proves the machinery;
   the real day is the evidence.
 
+## Symbol counts and crossed books on 12/30/2019
+
+Measured by `tools/book_stats.cpp` (output: `docs/results/book-stats-12302019.txt`).
+
+**How many books.** 8,906 distinct locates appear in R (stock directory) messages, 8,892 ever
+received an add order, and 8,892 ever had a non-empty book. Fourteen listed symbols never had a
+displayed order, so the number of books actually reconstructed is **8,892**, not 8,906.
+
+**The 8,649 `crossed_after_msg` events.** Each is one message that left best bid >= best ask on
+the symbol it touched. The analysis pass uses the same definition and agrees with the replay
+counter exactly (0 disagreements). They are not spread across the market:
+
+* They come from **15 symbols** and form **33 episodes** (runs of consecutive crossed messages on
+  one symbol). 8,579 events are strictly crossed (bid > ask), 70 are locked (bid == ask).
+* **Trading state explains all of them.** Using the symbol's latest trading action (H) at the time:
+  7,370 events were in state P (paused), 468 in H (halted), 169 in Q (quotation only), and the
+  remaining 642 were in state T but every one of those is within 1 s after a cross trade (Q
+  message) on the same symbol, i.e. the instant a halt ends and the reopening cross executes.
+* **Why that is real feed behaviour.** While a symbol is halted or paused Nasdaq keeps accepting
+  and displaying orders but does not match them, so bids can sit above asks. The book is uncrossed
+  by the reopening cross, whose executions arrive as C messages (non-printable, price = cross
+  price; the cross itself is reported once in a Q message). Example, MKD at 11:21:52.139: dozens of
+  C messages at 113000 sweep the crossed levels within one millisecond and the book uncrosses.
+  Four symbols (PNRL, IPDN, DNJR, SVA) were in state H from 03:09 and their last Q was the
+  16:00 closing cross, so their books stayed crossed for hours (the longest episodes in the
+  output file). No episode is still open at the end of the day.
+* By session phase: 8,441 events in regular hours, 96 after 20:00, 68 between 16:00 and 20:00,
+  44 in pre-market.
+* No sign of a code bug: all four designs and the independent Python reference and oracle agree on
+  the book contents, there are zero unknown-order anomalies, and every one of the 8,649 events is in a
+  halted, paused or quotation-only state, or at a halt cross. This does not prove the absence of a bug on those
+  15 symbols specifically (the differential test samples 5 symbols, none of which crossed), so
+  the claim is "explained by feed semantics", not "independently verified".
+
 ## Measurement notes
 
 * Throughput runs have no timers inside the loop. Latency runs time **1 in N messages** (default
