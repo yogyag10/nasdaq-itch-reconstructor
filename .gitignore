@@ -1,0 +1,10 @@
+.venv/
+build*/
+data/*
+!data/checksums.txt
+*.gz
+*.NASDAQ_ITCH50
+results/
+__pycache__/
+.cache/
+compile_commands.json

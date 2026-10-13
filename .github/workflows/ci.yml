@@ -1,0 +1,84 @@
+name: ci
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-test:
+    name: ${{ matrix.cxx }} ${{ matrix.build_type }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        cxx: [g++-13, clang++-18]
+        build_type: [Debug, Release]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain
+        run: sudo apt-get update && sudo apt-get install -y ninja-build zlib1g-dev g++-13 clang-18
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} -DITCH_BENCH=OFF
+      - name: Build
+        run: cmake --build build
+      - name: Unit tests
+        run: ctest --test-dir build --output-on-failure
+      - name: Differential test on synthetic fixture (all four designs)
+        run: |
+          ./build/synth_gen build/fixture.bin --seed 7 --symbols 20 --messages 60000
+          for store in std flat; do for levels in map vec; do
+            python3 reference/diff_test.py build/fixture.bin --replay build/replay \
+              --every 250 --symbols AAPL,MSFT,ILQ102,ILQ103 --store $store --levels $levels
+          done; done
+
+  sanitizers:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build zlib1g-dev clang-18
+      - name: ASan + UBSan build
+        run: cmake -S . -B build-san -G Ninja -DCMAKE_BUILD_TYPE=Debug -DITCH_SANITIZE=ON -DITCH_BENCH=OFF -DCMAKE_CXX_COMPILER=clang++-18 && cmake --build build-san
+      - name: Unit tests under sanitizers
+        run: ./build-san/itch_tests
+      - name: Replay under sanitizers
+        run: |
+          ./build-san/synth_gen build-san/s.bin --messages 100000
+          ./build-san/replay build-san/s.bin --no-timing
+
+  fuzz:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build zlib1g-dev clang-18 libclang-rt-18-dev
+      - name: Build libFuzzer target
+        run: cmake -S . -B build-fuzz -G Ninja -DCMAKE_BUILD_TYPE=Debug -DITCH_FUZZ=ON -DITCH_BENCH=OFF -DITCH_TESTS=OFF -DCMAKE_CXX_COMPILER=clang++-18 && cmake --build build-fuzz --target parse_fuzz synth_gen
+      - name: Seed corpus from the synthetic generator, fuzz for 60 s
+        run: |
+          mkdir -p corpus && ./build-fuzz/synth_gen corpus/seed.bin --messages 2000 --symbols 5
+          ./build-fuzz/parse_fuzz corpus -max_total_time=60 -max_len=65536
+
+  bench-smoke:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build zlib1g-dev
+      - run: cmake -S . -B build-rel -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build-rel
+      - name: Relative regression check (default design must not be >20% slower than baseline)
+        run: python3 scripts/bench_smoke.py build-rel/e2e_bench 1500000
+      - name: Micro-benchmark smoke (does it run; results are artifacts, not gates)
+        run: ./build-rel/micro_bench --benchmark_min_time=0.05s --benchmark_format=json > micro.json
+      - uses: actions/upload-artifact@v4
+        with: { name: micro-bench, path: micro.json }
+
+  format-tidy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build zlib1g-dev
+      - name: Install pinned clang-format / clang-tidy (same versions used locally)
+        run: pip install clang-format==23.1.3 clang-tidy==22.1.8
+      - name: clang-format
+        run: git ls-files 'include/*.hpp' 'src/*.cpp' 'tests/*.cpp' 'tests/*.hpp' 'fuzz/*.cpp' 'bench/*.cpp' | xargs clang-format --dry-run --Werror
+      - name: clang-tidy
+        run: |
+          cmake -S . -B build-tidy -G Ninja -DITCH_BENCH=OFF -DITCH_TESTS=OFF
+          clang-tidy -p build-tidy --warnings-as-errors='*' src/replay.cpp fuzz/parse_fuzz.cpp tests/synth_gen.cpp

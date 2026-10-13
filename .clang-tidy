@@ -1,0 +1,18 @@
+# Disabled on purpose:
+#  - bugprone-easily-swappable-parameters: noisy for (locate, price, shares) style signatures.
+#  - bugprone-derived-method-shadowing-base-method: handlers hide HandlerBase's no-op callbacks
+#    deliberately (static polymorphism, no virtuals).
+#  - bugprone-exception-escape: main() in the tools lets std::bad_alloc terminate, which is intended.
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-derived-method-shadowing-base-method,
+  -bugprone-exception-escape,
+  performance-*,
+  modernize-use-nullptr,
+  modernize-use-override,
+  readability-container-size-empty,
+  cppcoreguidelines-init-variables
+WarningsAsErrors: ''
+HeaderFilterRegex: 'include/itch/.*'
