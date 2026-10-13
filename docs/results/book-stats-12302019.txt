@@ -1,0 +1,104 @@
+system_event O at 03:04:32
+system_event S at 04:00:00
+system_event Q at 09:30:00
+system_event M at 16:00:00
+system_event E at 20:00:00
+system_event C at 20:05:00
+messages: 268744780  state_hash: a8c7f832281a39c5
+
+== symbol counts ==
+(a) distinct locates in R messages:           8906
+(b) distinct locates that received an add:    8892
+(c) distinct locates whose book was non-empty: 8892
+locates with adds but no R message: 0
+
+== trading actions (H) by state ==
+  H 19
+  P 22
+  Q 3
+  T 8922
+== cross trades (Q) by cross type ==
+  C 8906
+  H 24
+  O 8906
+
+== crossed/locked events (messages leaving best bid >= best ask) ==
+events: 8649 (replay crossed_after_msg counter disagreements: 0)
+locked (bid == ask): 70   crossed (bid > ask): 8579
+by session phase:
+  after end of system hours  96
+  post-market (after close)  68
+  regular market hours       8441
+  system hours (pre-market)  44
+by symbol's last trading-action state (? = no H seen yet):
+  H 468
+  P 7370
+  Q 169
+  T 642
+events with state T within 1s after a Q on the same symbol: 642 of 642
+events with state T, by phase:
+  regular market hours       642
+events with state T, by symbol:
+  ARDS     57
+  CETXP    1
+  MBOT     37
+  MKD      486
+  QUIK     21
+  SLGL     24
+  WKEY     11
+  YI       1
+  ZJZZT    1
+  ZWZZT    3
+by message type that left the book crossed:
+  A 4421
+  C 692
+  D 3163
+  F 355
+  U 1
+  X 17
+within 1s after a cross trade (Q) on the same symbol: 804
+within 1s after a trading action (H) on the same symbol: 2082
+on symbols that never had a Q before the event: 44
+distinct symbols with at least one event: 15
+top symbols by events:
+  MKD      5850
+  MBOT     782
+  ARDS     717
+  SLGL     547
+  PNRL     280
+  QUIK     260
+  WKEY     101
+  YI       30
+  IPDN     29
+  DNJR     17
+
+== H and Q timeline for the symbols with events ==
+MKD: H=H@04:00:00 H=H@07:34:08 H=Q@10:35:00 H=T@10:45:07 H=P@10:49:21 H=T@10:54:21 H=P@10:54:48 H=T@10:59:48 H=P@11:04:00 H=T@11:09:00 H=P@11:11:52 H=T@11:21:52 H=P@11:22:29 H=T@11:47:19 H=P@11:51:40 H=T@11:56:40 Q=O@09:30:00 Q=H@10:45:07 Q=H@10:54:21 Q=H@10:59:48 Q=H@11:09:00 Q=H@11:21:52 Q=H@11:47:19 Q=H@11:56:40 Q=C@16:00:00
+MBOT: H=T@03:09:14 H=P@14:15:41 H=T@14:20:41 Q=O@09:30:00 Q=H@14:20:41 Q=C@16:00:00
+ARDS: H=T@03:09:14 H=P@14:54:05 H=T@15:04:06 H=P@15:04:34 H=T@15:09:34 H=P@15:14:23 H=T@15:19:23 Q=O@09:30:00 Q=H@15:04:06 Q=H@15:09:34 Q=H@15:19:23 Q=C@16:00:00
+SLGL: H=T@03:09:15 H=P@10:05:57 H=T@10:10:57 Q=O@09:30:00 Q=H@10:10:57 Q=C@16:00:00
+PNRL: H=H@03:09:15 Q=O@09:30:00 Q=C@16:00:00
+QUIK: H=T@03:09:15 H=P@10:20:39 H=T@10:25:39 Q=O@09:30:00 Q=H@10:25:39 Q=C@16:00:00
+WKEY: H=T@03:09:15 H=P@09:51:59 H=T@10:07:00 H=P@10:20:41 H=T@10:25:41 H=P@10:27:24 H=T@10:32:24 H=P@10:35:27 H=T@10:40:27 H=P@10:48:51 H=T@10:53:51 Q=O@09:30:00 Q=H@10:07:00 Q=H@10:25:41 Q=H@10:32:24 Q=H@10:40:27 Q=H@10:53:51 Q=C@16:00:00
+YI: H=T@03:09:15 H=P@14:21:47 H=T@14:26:47 Q=O@09:30:00 Q=H@14:26:47 Q=C@16:00:00
+IPDN: H=H@03:09:14 Q=O@09:30:00 Q=C@16:00:00
+DNJR: H=H@03:09:14 Q=O@09:30:00 Q=C@16:00:00
+SVA: H=H@03:09:15 Q=O@09:30:00 Q=C@16:00:00
+ZWZZT: H=T@03:09:15 H=H@07:01:01 H=Q@09:50:00 H=T@10:00:22 Q=O@09:30:00 Q=H@10:00:22 Q=C@16:00:00
+WRLS: H=T@03:09:15 H=P@12:57:01 H=T@13:02:01 Q=O@09:30:00 Q=H@13:02:01 Q=C@16:00:00
+CETXP: H=T@03:09:14 H=P@09:59:47 H=T@10:04:47 Q=O@09:30:00 Q=H@10:04:47 Q=C@16:00:00
+ZJZZT: H=T@03:09:15 H=H@07:01:15 H=Q@09:50:00 H=T@10:00:12 Q=O@09:30:00 Q=H@10:00:12 Q=C@16:00:00
+
+== episodes (consecutive crossed messages on one symbol) ==
+episodes: 33 (still crossed at end of day: 0, locked-only: 4)
+crossed-message count per episode: p50 29 p90 723 max 1678
+duration (ns) of closed episodes:  p50 300000080857 p90 7283188643239 max 43149121597041
+longest episodes:
+  PNRL     start 08:00:50 msgs 280 lasted 43149121 ms
+  IPDN     start 09:30:01 msgs 29 lasted 23399106 ms
+  SVA      start 09:30:01 msgs 14 lasted 23398771 ms
+  DNJR     start 09:30:01 msgs 17 lasted 23398580 ms
+  MKD      start 08:43:44 msgs 368 lasted 7283188 ms
+  ZWZZT    start 09:30:01 msgs 7 lasted 1820762 ms
+  ZJZZT    start 09:30:01 msgs 4 lasted 1810715 ms
+  MKD      start 11:22:29 msgs 1678 lasted 1490000 ms
