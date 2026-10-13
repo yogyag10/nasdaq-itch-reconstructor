@@ -13,7 +13,7 @@ All numbers below come from the files in [docs/results/](docs/results/), run on 
 
 | Headline | Value |
 |---|---|
-| Day file, message count, symbols | 12302019.NASDAQ_ITCH50, 268,744,780 messages, 8,906 symbols (R messages) |
+| Day file, message count, symbols | 12302019.NASDAQ_ITCH50, 268,744,780 messages; 8,906 symbols in the stock directory, **8,892 books actually built** (ever non-empty) |
 | Throughput, memory-resident, flat store + sorted-vector levels (95% CI, 30 runs) | 6.46 M msgs/s [6.28, 6.65] |
 | p50 / p99 / p99.9 per-message latency, same design (95% CI) | 125 ns / 441 ns [433, 449] / 1,216 ns [1,197, 1,236] |
 | Baseline (`std::unordered_map` + `std::map`) | 3.74 M msgs/s [3.42, 4.00]; p99 937 ns [915, 966] |
@@ -68,8 +68,8 @@ Results on the real day (files in `docs/results/`):
 * Oracle: BBO streams, timestamps included, agree for AAPL (424,660 updates), MSFT (600,038),
   BSJR, AHT-F and ISCF.
 * All four designs produce the same final state hash `a8c7f832281a39c5`; zero anomaly counters
-  except `crossed_after_msg` = 8,649 (momentary crossed books observed in the real feed, reported
-  rather than asserted away). 0 live orders remain at end of day.
+  except `crossed_after_msg` = 8,649 (books crossed while a symbol is halted or paused, from 15 symbols;
+  explained in [docs/design.md](docs/design.md)). 0 live orders remain at end of day.
 * 88 unit tests pass in Debug, Release and ASan+UBSan builds; CI (GCC 13 / clang 18 matrix,
   sanitizers, 60 s libFuzzer run, format/tidy, bench smoke) passes on GitHub Actions.
 * ASan found one genuine bug during development (use-after-erase in `remove_order`); it is fixed
