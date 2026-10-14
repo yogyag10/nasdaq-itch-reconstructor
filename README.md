@@ -211,6 +211,21 @@ Caveats specific to this run:
   explanation, not a proven one. The first run's headline was dropped; its files are kept.
 * Throughput with I/O included (reading from cold disk or the `.gz` stream) was not measured.
 * The first version of `remove_order` had a use-after-erase bug, caught by ASan.
+* **Bug found by the fuzzer: order ref 2^64-1.** One 60 s libFuzzer run in CI trapped on the
+  harness's `verify()` invariant check (exit code 77, "deadly signal"). Root cause: `FlatOrderStore`
+  marks an empty slot with the key `~0`, so an add whose order reference was exactly 2^64-1 put a
+  price level in the book but stored no order, and `find(~0)` matched any empty slot. Reproduced
+  locally with a stock directory message plus one add with that ref. Real Nasdaq refs never get
+  near that value, so the 268M-message results and state hash were unaffected, but it meant the
+  flat store misbehaved on malformed input where the `std` store did not. Fix: `BookBuilder` counts
+  an add (or replace target) with that ref as `malformed` and skips the message for every store,
+  and `FlatOrderStore` treats `~0` as absent in `insert`, `find` and `erase`. A regression test
+  runs the exact input against all four designs. The fuzz harness also used to reuse one handler
+  for 256 inputs, which made crashes depend on inputs the fuzzer does not save; it now builds a fresh
+  handler per input. The first CI run's crashing input was not saved (no artifact upload then), so
+  the reproduction is from the stack trace and the 0xFF-heavy dictionary entries in the log, not
+  from the saved file. A single green 60 s fuzz run afterwards is weak evidence on its own; the
+  regression test is what pins this case.
 
 ## Limitations
 

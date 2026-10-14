@@ -1,0 +1,44 @@
+file: data/12302019.NASDAQ_ITCH50
+design: store=flat levels=vec
+messages: 268744780
+zero_length_frames: 0
+trailing_bytes: 0
+counts:
+  A 117145568
+  C 99917
+  D 114360997
+  E 5722824
+  F 1485888
+  H 8966
+  I 4024315
+  J 34
+  K 3
+  L 215161
+  P 1218602
+  Q 17836
+  R 8906
+  S 6
+  U 21639067
+  V 1
+  X 2787676
+  Y 9013
+anomalies:
+  unknown_exec 0
+  unknown_exec_price 0
+  unknown_cancel 0
+  unknown_delete 0
+  unknown_replace 0
+  duplicate_ref 0
+  zero_share_add 0
+  exec_exceeds_remaining 0
+  cancel_exceeds_remaining 0
+  level_inconsistent 0
+  crossed_after_msg 8649
+  malformed 0
+  unknown_type 0
+live_orders: 0
+printable_shares: 856824388
+nonprintable_shares: 3754970
+state_hash: a8c7f832281a39c5
+elapsed_s: 25.440
+msgs_per_s: 10563801 (single run, includes mmap; use e2e_bench for results)
