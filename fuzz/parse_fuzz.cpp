@@ -16,11 +16,10 @@ using Handler = itch::BookBuilder<itch::FlatOrderStore, itch::SideVec<true>, itc
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-    // Fresh state per input keeps runs independent and reproducible. The small reserve keeps the
-    // per-input setup cost low; the 65536-book table is the dominant constant.
-    static std::unique_ptr<Handler> h;
-    static uint64_t uses = 0;
-    if (!h || ++uses % 256 == 0) h = std::make_unique<Handler>(itch::NullSink{}, 64);
+    // Fresh state per input, so a crash depends only on the saved input and reproduces from it.
+    // (An earlier version reused one handler across 256 inputs; that made crashes depend on
+    // inputs the fuzzer does not save.) The small reserve keeps the order-store setup cheap.
+    auto h = std::make_unique<Handler>(itch::NullSink{}, 64);
     itch::FrameStats st;
     itch::consume_frames({reinterpret_cast<const std::byte*>(data), size}, *h, st);
 #ifndef NDEBUG
