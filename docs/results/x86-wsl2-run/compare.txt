@@ -1,0 +1,13 @@
+flat-vec vs std-map (throughput); difference = flat-vec - std-map
+  msgs_per_sec: diff +3690706.00 [+3652078.50, +4177345.50] (+128.5% of std-map) -> IMPROVEMENT (CI excludes 0)
+flat-vec vs std-map (latency); difference = flat-vec - std-map
+  p50_ns: diff -210.00 [-214.00, -209.00] (-52.6% of std-map) -> IMPROVEMENT (CI excludes 0)
+  p99_ns: diff -960.00 [-986.00, -948.00] (-62.5% of std-map) -> IMPROVEMENT (CI excludes 0)
+  p999_ns: diff -976.00 [-1088.00, -768.00] (-37.9% of std-map) -> IMPROVEMENT (CI excludes 0)
+--- means
+flat-vec vs std-map (throughput); difference = flat-vec - std-map
+  msgs_per_sec: diff +4165603.73 [+3908473.00, +4447095.24] (+174.2% of std-map) -> IMPROVEMENT (CI excludes 0)
+flat-vec vs std-map (latency); difference = flat-vec - std-map
+  p50_ns: diff -218.73 [-228.00, -211.03] (-53.6% of std-map) -> IMPROVEMENT (CI excludes 0)
+  p99_ns: diff -1788.80 [-2518.00, -1174.66] (-75.6% of std-map) -> IMPROVEMENT (CI excludes 0)
+  p999_ns: diff -2682.93 [-4166.13, -1408.77] (-62.8% of std-map) -> IMPROVEMENT (CI excludes 0)
