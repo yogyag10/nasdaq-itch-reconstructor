@@ -1,4 +1,4 @@
-# itch-book
+# Nasdaq ITCH Order-Book Reconstructor
 
 A C++20 **Nasdaq TotalView-ITCH 5.0 feed handler and order-book reconstructor**. It replays a
 trading day of ITCH messages and rebuilds the order book for every symbol, with correctness
@@ -36,7 +36,7 @@ mmap'd file  ->  framer (2-byte BE length)  ->  parser (zero-copy decode, switch
   generator. `fuzz/` libFuzzer target. `bench/` Google Benchmark + end-to-end harness.
   `reference/` Python reference book, differential test, oracle check. `analysis/` bootstrap CIs
   and plots. `scripts/` data fetch and benchmark drivers. `docs/` design notes.
-* Design rationale, spec deviations from the brief, and the L2-vs-L3 decision: [docs/design.md](docs/design.md).
+* Design rationale, spec deviations from the project plan, and the L2-vs-L3 decision: [docs/design.md](docs/design.md).
 
 ## Build and run
 
@@ -55,7 +55,7 @@ Options: `--store std|flat`, `--levels map|vec`, `--checkpoint-every N --checkpo
 
 ## Correctness method
 
-Unit tests (every message type, the edge cases in the brief, all four store x level designs,
+Unit tests (every message type, the edge cases in the project plan, all four store x level designs,
 invariants verified after every message) | differential test against a slow Python book |
 oracle comparison against PyPI `itch-book` | libFuzzer target | ASan/UBSan | determinism check
 (two runs, identical hash; designs must agree on the hash).
@@ -220,7 +220,7 @@ Caveats specific to this run:
 
 ## What didn't work
 
-* The `perf stat` counter attribution and flame graph the brief asks for were not done. The Mac
+* The `perf stat` counter attribution and flame graph the project plan asks for were not done. The Mac
   has no `perf`, and the x86 cross-check ran in a WSL2 VM with no counters collected.
 * No pinned run on a quiet x86 host. The WSL2 cross-check is unpinned and noisy, and on the Mac
   tail latency is quantised and noisy; treat p99.9 in particular as unstable (extreme tail percentiles move a lot between runs).
