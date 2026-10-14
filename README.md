@@ -9,14 +9,14 @@ intervals.
 > matches orders itself.
 
 **Status: one real day measured (Nasdaq 12/30/2019, 268,744,780 messages).**
-All numbers below come from the files in [docs/results/](docs/results/), run on an Apple M5 (macOS, unpinned). Benchmark numbers are from the second full run, `docs/results/mac-run2/`; the first run is kept in `mac-run1-loaded/` and explained under "What didn't work".
+All numbers below come from the files in [docs/results/](docs/results/), run on an Apple M5 (macOS, unpinned). Headline benchmark numbers are from the third run, `docs/results/mac-run3-postfix/`, taken after the reserved-order-ref fix (two designs only). The four-design table below is from the second run, `docs/results/mac-run2/`, taken before the fix; the first run is kept in `mac-run1-loaded/` and explained under "What didn't work".
 
 | Headline | Value |
 |---|---|
 | Day file, message count, symbols | 12302019.NASDAQ_ITCH50, 268,744,780 messages; 8,906 symbols in the stock directory, **8,892 books actually built** (ever non-empty) |
-| Throughput, memory-resident, flat store + sorted-vector levels (95% CI, 30 runs) | 9.90 M msgs/s [9.82, 9.97] |
-| p50 / p99 / p99.9 per-message latency, same design (95% CI) | 125 ns / 445 ns [432, 459] / 1,113 ns [1,089, 1,140] |
-| Baseline (`std::unordered_map` + `std::map`) | 4.06 M msgs/s [3.96, 4.17]; p99 1,004 ns [966, 1,051] |
+| Throughput, memory-resident, flat store + sorted-vector levels (95% CI, 30 runs) | 9.94 M msgs/s [9.88, 9.99] |
+| p50 / p99 / p99.9 per-message latency, same design (95% CI) | 125 ns / 417 ns [413, 421] / 1,059 ns [1,052, 1,067] |
+| Baseline (`std::unordered_map` + `std::map`) | 5.08 M msgs/s [5.05, 5.10]; p99 865 ns [846, 888] |
 | Differential mismatches over the day | 0 (1,340 symbol-checkpoints, all four designs) |
 | Oracle BBO cross-check (`itch-book` 0.2.1) | 0 mismatches, 5 symbols |
 
@@ -70,7 +70,7 @@ Results on the real day (files in `docs/results/`):
 * All four designs produce the same final state hash `a8c7f832281a39c5`; zero anomaly counters
   except `crossed_after_msg` = 8,649 (books crossed while a symbol is halted or paused, from 15 symbols;
   explained in [docs/design.md](docs/design.md)). 0 live orders remain at end of day.
-* 88 unit tests pass in Debug, Release and ASan+UBSan builds; CI (GCC 13 / clang 18 matrix,
+* 93 unit tests pass in Debug, Release and ASan+UBSan builds; CI (GCC 13 / clang 18 matrix,
   sanitizers, 60 s libFuzzer run, format/tidy, bench smoke) passes on GitHub Actions.
 * ASan found one genuine bug during development (use-after-erase in `remove_order`); it is fixed
   and covered by a regression test that fails if the bug is reintroduced.
@@ -127,7 +127,34 @@ structure argument (contiguous storage, fewer pointer chases), not a measurement
 counters are unavailable on macOS. The p50 of exactly 125 ns (three ~42 ns timer steps) is quantised,
 so those p50 CIs are degenerate and say little beyond "about 125 ns".
 
-Latency histogram for the winning design: ![latency](docs/results/mac-run2/latency-flat-vec.png)
+### Re-run after the reserved-ref fix (`docs/results/mac-run3-postfix/`)
+
+Same machine and method (30 runs, 3 warm-ups, 1-in-64 sampling), git `9b9ba9b`, load average 3.1 at
+start (run2: 4.3). Only the baseline and flat hash + sorted vector were re-run. All 120 rows carry
+hash `a8c7f832281a39c5`.
+
+| design | throughput (M msgs/s) | p50 ns | p99 ns | p99.9 ns |
+|---|---|---|---|---|
+| unordered_map + std::map (baseline) | 5.08 [5.05, 5.10] | 167 [167, 167] | 865 [846, 888] | 1,383 [1,313, 1,470] |
+| **flat hash + sorted vector** | **9.94 [9.88, 9.99]** | **125 [125, 125]** | **417 [413, 421]** | **1,059 [1,052, 1,067]** |
+
+Difference, flat hash + sorted vector minus baseline: throughput +4.86 M msgs/s [+4.79, +4.92]
+(+95.8%); p99 -448 ns [-471, -429] (-51.8%); both CIs exclude zero.
+
+Against run2 (before the fix):
+
+* flat hash + sorted vector throughput: 9.90 [9.82, 9.97] to 9.94 [9.88, 9.99]. The CIs overlap, so no change.
+* flat hash + sorted vector p99: 445 [432, 459] to 417 [413, 421]. The CIs do not overlap, so p99 is
+  lower, which is the opposite of a cost from the fix. The fix adds one compare per add, replace and
+  lookup, which I would expect to be invisible; I did not measure why p99 moved, and it may be
+  machine state (the runs are hours apart on an unpinned laptop).
+* Baseline throughput: 4.06 [3.96, 4.17] to 5.08 [5.05, 5.10], well outside the CIs. The fix cannot
+  plausibly speed up the baseline, so this gap is machine state or run-to-run drift, not the code.
+  Run2's baseline CI was also much wider. I did not isolate the cause. This is why the gap between
+  the two designs shrank from +143.6% to +95.8%: the headline ratio depends on the run, so quote it
+  with that in mind.
+
+Latency histogram for the winning design (run2): ![latency](docs/results/mac-run2/latency-flat-vec.png)
 
 ## x86 cross-check (WSL2)
 
