@@ -96,6 +96,10 @@ class BookBuilder : public HandlerBase {
         sink_.on_symbol(d.h.locate, d.stock);
     }
     void on_add(const AddOrder& a) {
+        if (a.ref == kReservedRef) {  // the flat store's empty-slot marker; see order_store.hpp
+            ++anom_.malformed;
+            return;
+        }
         if (a.shares == 0) {
             ++anom_.zero_share_add;
             return;
@@ -149,6 +153,10 @@ class BookBuilder : public HandlerBase {
         remove_order(d.ref, *r);
     }
     void on_replace(const OrderReplace& u) {
+        if (u.new_ref == kReservedRef) {  // reject the whole message: the old order stays live
+            ++anom_.malformed;
+            return;
+        }
         OrderRec* r = store_.find(u.old_ref);
         if (!r) {
             ++anom_.unknown_replace;

@@ -65,6 +65,19 @@ TYPED_TEST(StoreTest, SequentialRefsLikeRealFeed) {
     for (uint64_t k = 1000; k < 101000; ++k) EXPECT_EQ(s.find(k) != nullptr, (k & 1) != 0);
 }
 
+// The flat store marks empty slots with ~0, so that value can never be a stored key.
+TEST(FlatStoreReservedRef, TreatedAsAbsent) {
+    FlatOrderStore s(16);
+    constexpr OrderRef kBad = ~OrderRef{0};
+    EXPECT_FALSE(s.insert(kBad, OrderRec{1, 1, 1, Side::Buy}));
+    EXPECT_EQ(s.size(), 0u);
+    EXPECT_EQ(s.find(kBad), nullptr);
+    EXPECT_FALSE(s.erase(kBad));
+    EXPECT_TRUE(s.insert(5, OrderRec{1, 1, 1, Side::Buy}));
+    EXPECT_EQ(s.find(kBad), nullptr);
+    EXPECT_EQ(s.size(), 1u);
+}
+
 TEST(Hdr, RelativeErrorBoundAndPercentiles) {
     HdrHistogram h;
     for (uint64_t v = 1; v <= 100000; ++v) h.record(v);

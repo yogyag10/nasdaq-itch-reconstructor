@@ -14,6 +14,11 @@
 
 namespace itch {
 
+// FlatOrderStore uses this value to mark an empty slot, so it can never be a stored key. Real
+// feeds never get near 2^64-1; BookBuilder rejects it as malformed for every store so the
+// designs behave identically on bad input.
+inline constexpr OrderRef kReservedRef = ~OrderRef{0};
+
 struct OrderRec {
     Price price;
     uint32_t shares;  // remaining displayed shares, always > 0 while stored
@@ -48,6 +53,7 @@ class FlatOrderStore {
         init(cap);
     }
     bool insert(OrderRef ref, const OrderRec& r) {
+        if (ref == kEmpty) return false;
         if ((size_ + 1) * 10 > slots_.size() * 7) grow();  // keep load factor <= 0.7
         size_t i = home(ref);
         for (;; i = (i + 1) & mask_) {
@@ -59,12 +65,14 @@ class FlatOrderStore {
         return true;
     }
     OrderRec* find(OrderRef ref) {
+        if (ref == kEmpty) return nullptr;
         for (size_t i = home(ref);; i = (i + 1) & mask_) {
             if (slots_[i].key == ref) return &slots_[i].rec;
             if (slots_[i].key == kEmpty) return nullptr;
         }
     }
     bool erase(OrderRef ref) {
+        if (ref == kEmpty) return false;
         size_t i = home(ref);
         for (;; i = (i + 1) & mask_) {
             if (slots_[i].key == ref) break;
@@ -94,7 +102,7 @@ class FlatOrderStore {
     }
 
   private:
-    static constexpr OrderRef kEmpty = ~OrderRef{0};
+    static constexpr OrderRef kEmpty = kReservedRef;
     struct Slot {
         OrderRef key;
         OrderRec rec;

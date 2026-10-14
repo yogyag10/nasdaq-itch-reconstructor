@@ -159,6 +159,34 @@ TYPED_TEST(BookTest, UnknownReferencesAreCountedNotFatal) {
     EXPECT_EQ(this->h->store().size(), 0u);
 }
 
+// Found by the CI libFuzzer run: an order reference of 2^64-1 is the flat store's "empty slot"
+// marker, so an add with that ref put a level in the book but no order in the store.
+// The handler must reject it as malformed for every design, and leave nothing behind.
+TYPED_TEST(BookTest, ReservedOrderRefIsMalformedNotStored) {
+    constexpr uint64_t kBad = ~uint64_t{0};
+    this->send(stock_directory(1, 1, "AAPL"));
+    this->send(add(1, 10, kBad, 'B', 100, "AAPL", 1000000));
+    EXPECT_EQ(this->h->anomalies().malformed, 1u);
+    EXPECT_EQ(this->h->store().size(), 0u);
+    EXPECT_TRUE(this->h->book(1).empty());
+
+    // A live order must be unaffected by messages that name the reserved ref.
+    this->send(add(1, 20, 7, 'B', 100, "AAPL", 1000000));
+    this->send(replace(1, 30, 7, kBad, 50, 1000100));  // rejected whole: old order stays
+    EXPECT_EQ(this->h->anomalies().malformed, 2u);
+    EXPECT_EQ(this->bbo().bid_sz, 100u);
+    this->send(executed(1, 40, kBad, 10, 1));
+    this->send(cancel(1, 50, kBad, 10));
+    this->send(del(1, 60, kBad));
+    this->send(replace(1, 70, kBad, 8, 10, 1000200));
+    EXPECT_EQ(this->h->anomalies().unknown_exec, 1u);
+    EXPECT_EQ(this->h->anomalies().unknown_cancel, 1u);
+    EXPECT_EQ(this->h->anomalies().unknown_delete, 1u);
+    EXPECT_EQ(this->h->anomalies().unknown_replace, 1u);
+    EXPECT_EQ(this->h->store().size(), 1u);
+    EXPECT_EQ(this->bbo().bid_sz, 100u);
+}
+
 TYPED_TEST(BookTest, OverExecutionAndOverCancelClampAndCount) {
     this->send(add(1, 1, 1, 'B', 100, "AAPL", 1000));
     this->send(cancel(1, 2, 1, 500));  // more than remaining
