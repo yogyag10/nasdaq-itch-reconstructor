@@ -117,8 +117,8 @@ improvement only if the CI excludes zero):
 
 Which change mattered: comparing the means, swapping the order store (baseline to flat hash with
 `std::map`) moved throughput by +3.84 M msgs/s, and swapping the price levels (baseline to sorted
-vector) by +1.71 M msgs/s; the two together gave +5.83 M. The order-store change is the larger one.
-These per-factor differences are read off the table, without their own CIs.
+vector) by +1.71 M msgs/s; the two together gave +5.83 M. The order-store change is the larger one on this machine (the x86 run below ranks
+them differently). These per-factor differences are read off the table, without their own CIs.
 
 Caveats on this comparison: the four designs were run one after another, not interleaved, so slow
 machine drift could contribute to the gaps (the throughput gap is far larger than the run-to-run
@@ -129,12 +129,74 @@ so those p50 CIs are degenerate and say little beyond "about 125 ns".
 
 Latency histogram for the winning design: ![latency](docs/results/mac-run2/latency-flat-vec.png)
 
+## x86 cross-check (WSL2)
+
+A second machine, run by hand from the same code (`git 5b5f0f2` in `env.txt`, which is commit
+`239b6d2` after a later history rewrite) and the same 12/30/2019 file. The Mac results above stay the
+headline; this run is a cross-check, not a controlled benchmark. Files:
+[docs/results/x86-wsl2-run/](docs/results/x86-wsl2-run/).
+
+Environment: Intel Core i7-1355U laptop CPU, **1 logical core visible to the guest**, 10 GB RAM,
+Ubuntu under **WSL2** (Linux 6.18.33.2-microsoft-standard-WSL2), GCC 15.2.0, `-O3`, CPU governor
+unavailable, no core pinning possible, load average 0.72 at start. 30 measured runs per design (3
+warm-ups), same methodology as the Mac runs.
+
+**Output is identical across machines.** All 240 rows of `runs.csv` (all four designs, both modes)
+carry the final state hash `a8c7f832281a39c5` over 268,744,780 messages. That is the same hash as the
+Mac `replay` run and the Mac benchmark rows, across arm64 vs x86_64, Apple clang vs GCC, and all four
+designs.
+
+Medians with 95% bootstrap CIs (the headline statistic for this run, because several runs were
+disturbed by the host, see below):
+
+| design | throughput (M msgs/s) | p50 ns | p99 ns | p99.9 ns |
+|---|---|---|---|---|
+| unordered_map + std::map (baseline) | 2.87 [2.40, 2.90] | 399 [399, 403] | 1,535 [1,527, 1,559] | 2,575 [2,383, 2,671] |
+| unordered_map + sorted vector | 3.95 [3.93, 3.96] | 295 [293, 295] | 975 [971, 979] | 2,423 [2,399, 2,479] |
+| flat hash + std::map | 3.91 [3.90, 3.92] | 231 [229, 297] | 1,203 [1,183, 2,527] | 2,551 [2,415, 5,951] |
+| **flat hash + sorted vector** | **6.56 [6.54, 6.58]** | **189 [189, 190]** | **575 [575, 579]** | **1,599 [1,547, 1,643]** |
+
+Means with 95% bootstrap CIs (`summary.md`; pulled around by the disturbed runs):
+
+| design | throughput (M msgs/s) | p50 ns | p99 ns | p99.9 ns |
+|---|---|---|---|---|
+| unordered_map + std::map (baseline) | 2.39 [2.12, 2.64] | 408 [401, 417] | 2,366 [1,748, 3,081] | 4,275 [3,023, 5,712] |
+| unordered_map + sorted vector | 3.72 [3.46, 3.93] | 295 [294, 295] | 976 [974, 979] | 2,446 [2,415, 2,481] |
+| flat hash + std::map | 3.91 [3.89, 3.92] | 378 [303, 458] | 2,009 [1,631, 2,417] | 9,251 [5,741, 13,030] |
+| **flat hash + sorted vector** | **6.56 [6.52, 6.59]** | **189 [189, 190]** | **577 [576, 579]** | **1,592 [1,560, 1,624]** |
+
+Flat hash + sorted vector minus baseline (`compare.txt`): with medians, throughput +3.69 M msgs/s
+[+3.65, +4.18], p99 -960 ns [-986, -948]; with means, +4.17 M [+3.91, +4.45] and -1,789 ns
+[-2,518, -1,175]. The CIs exclude zero either way, so the direction agrees with the Mac, but the
+sizes differ and this machine cannot say how much of the gap is the designs and how much is noise.
+
+Caveats specific to this run:
+
+* **1 vCPU inside a WSL2 VM.** Nothing else is pinned or isolated; the Windows host can steal time
+  from the guest at any moment. No governor or turbo control, no `perf` counters were collected and
+  no flame graph was made.
+* **Disturbed runs.** Baseline throughput: the first run took 269 s (1.00 M msgs/s against a 2.87 M
+  median), and 10 of its 30 runs were below 2.4 M. Sorted-vector-with-`unordered_map` had 3 slow
+  runs (1.5 to 1.95 M against 3.95 M). Flat hash + `std::map` had a contiguous stretch of runs 14 to
+  24 in latency mode with p99.9 up to 29,695 ns against a 2,551 ns median. These look like host
+  interference rather than properties of the designs, but I did not isolate the cause. This is why
+  the median table is shown first.
+* **Timer step.** On three designs the calibrated timer step was about 11 ns (10.7, 11.5 and 12.3
+  ns), so p50 is resolved far finer than the Mac's 42 ns step and is not quantised at the scale of
+  these differences. The baseline latency pass measured a **75 ns step and a 66 ns back-to-back
+  timer floor**, against a 9 to 11 ns floor for the other three, so its p50 (399 ns, about 5 steps) is
+  coarser and the baseline latency comparison on this machine is less like-for-like. I did not find
+  out why the timer behaved differently in that pass.
+* **Ranking differs from the Mac.** By median throughput here the sorted-vector levels (3.95) matter
+  about as much as the flat hash store (3.91) on their own, while on the Mac the store change was
+  the larger one. I do not have counters to say why.
+
 ## What didn't work
 
-* The `perf stat` counter attribution and flame graph the brief asks for were not done: they need
-  Linux and this was developed on a Mac.
-* No x86 / pinned run, so tail latency here is quantised and noisy; treat p99.9 in particular as
-  unstable (extreme tail percentiles move a lot between runs).
+* The `perf stat` counter attribution and flame graph the brief asks for were not done. The Mac
+  has no `perf`, and the x86 cross-check ran in a WSL2 VM with no counters collected.
+* No pinned run on a quiet x86 host. The WSL2 cross-check is unpinned and noisy, and on the Mac
+  tail latency is quantised and noisy; treat p99.9 in particular as unstable (extreme tail percentiles move a lot between runs).
 * The four designs were not interleaved within one session, so the comparison is not a controlled A/B.
 * **Throughput gap between tools, resolved.** The first full benchmark run reported 6.46 M msgs/s
   for flat hash + sorted vector, while the single-run `replay` tool reported about 10.5 M for the
