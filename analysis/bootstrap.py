@@ -31,19 +31,25 @@ def load(paths):
     return rows
 
 
-def ci_mean(x, rng):
+STATS = {"mean": np.mean, "median": np.median}
+
+
+def ci_mean(x, rng, stat="mean"):
+    """Percentile-bootstrap CI of the mean (default) or the median over the runs in x."""
+    f = STATS[stat]
     x = np.asarray(x, dtype=float)
     idx = rng.integers(0, len(x), size=(N_BOOT, len(x)))
-    means = x[idx].mean(axis=1)
-    return x.mean(), *np.percentile(means, [2.5, 97.5])
+    boots = f(x[idx], axis=1)
+    return f(x), *np.percentile(boots, [2.5, 97.5])
 
 
-def ci_diff(a, b, rng):
+def ci_diff(a, b, rng, stat="mean"):
+    f = STATS[stat]
     a, b = np.asarray(a, float), np.asarray(b, float)
-    ma = a[rng.integers(0, len(a), size=(N_BOOT, len(a)))].mean(axis=1)
-    mb = b[rng.integers(0, len(b), size=(N_BOOT, len(b)))].mean(axis=1)
+    ma = f(a[rng.integers(0, len(a), size=(N_BOOT, len(a)))], axis=1)
+    mb = f(b[rng.integers(0, len(b), size=(N_BOOT, len(b)))], axis=1)
     d = mb - ma
-    return b.mean() - a.mean(), *np.percentile(d, [2.5, 97.5])
+    return f(b) - f(a), *np.percentile(d, [2.5, 97.5])
 
 
 def col(rows, m):
@@ -53,12 +59,12 @@ def col(rows, m):
 def cmd_summary(a):
     rng = np.random.default_rng(SEED)
     rows = load(a.csv)
-    print("| design | mode | runs | metric | mean | 95% CI |")
+    print(f"| design | mode | runs | metric | {a.stat} | 95% CI |")
     print("|---|---|---|---|---|---|")
     for (label, mode), rs in sorted(rows.items()):
         ms = ["msgs_per_sec"] if mode == "throughput" else ["p50_ns", "p99_ns", "p999_ns"]
         for m in ms:
-            mean, lo, hi = ci_mean(col(rs, m), rng)
+            mean, lo, hi = ci_mean(col(rs, m), rng, a.stat)
             scale, unit = (1e6, " M") if m == "msgs_per_sec" else (1, "")
             print(f"| {label} | {mode} | {len(rs)} | {m} | {mean/scale:.2f}{unit} | "
                   f"[{lo/scale:.2f}, {hi/scale:.2f}] |")
@@ -78,8 +84,8 @@ def cmd_compare(a):
     ms = ["msgs_per_sec"] if a.mode == "throughput" else ["p50_ns", "p99_ns", "p999_ns"]
     print(f"{a.b} vs {a.a} ({a.mode}); difference = {a.b} - {a.a}")
     for m in ms:
-        d, lo, hi = ci_diff(col(rows[A], m), col(rows[B], m), rng)
-        base = np.mean(col(rows[A], m))
+        d, lo, hi = ci_diff(col(rows[A], m), col(rows[B], m), rng, a.stat)
+        base = STATS[a.stat](col(rows[A], m))
         better = METRICS[m]
         excludes = lo > 0 or hi < 0
         if not excludes:
@@ -96,12 +102,15 @@ if __name__ == "__main__":
     sub = ap.add_subparsers(required=True)
     s = sub.add_parser("summary")
     s.add_argument("csv", nargs="+")
+    s.add_argument("--stat", choices=list(STATS), default="mean",
+                   help="statistic over runs; median resists occasional noisy-host runs")
     s.set_defaults(fn=cmd_summary)
     c = sub.add_parser("compare")
     c.add_argument("csv", nargs="+")
     c.add_argument("--a", required=True, help="baseline design label")
     c.add_argument("--b", required=True, help="candidate design label")
     c.add_argument("--mode", default="throughput", choices=["throughput", "latency"])
+    c.add_argument("--stat", choices=list(STATS), default="mean")
     c.set_defaults(fn=cmd_compare)
     args = ap.parse_args()
     args.fn(args)
