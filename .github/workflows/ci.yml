@@ -54,7 +54,12 @@ jobs:
       - name: Seed corpus from the synthetic generator, fuzz for 60 s
         run: |
           mkdir -p corpus && ./build-fuzz/synth_gen corpus/seed.bin --messages 2000 --symbols 5
-          ./build-fuzz/parse_fuzz corpus -max_total_time=60 -max_len=65536
+          mkdir -p crashes
+          ./build-fuzz/parse_fuzz corpus -max_total_time=60 -max_len=65536 -artifact_prefix=crashes/
+      - name: Keep the crashing input if the fuzzer finds one
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with: { name: fuzz-crash, path: crashes/ }
 
   bench-smoke:
     runs-on: ubuntu-24.04
